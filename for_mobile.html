@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Object Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #000;
+            color: #fff;
+        }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        #status {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mobile Object Detection</h1>
+    <div id="status">Loading model...</div>
+
+    <script>
+        const statusElement = document.getElementById('status');
+
+        // Load the COCO-SSD model
+        cocoSsd.load().then(model => {
+            statusElement.textContent = 'Model loaded successfully!';
+        }).catch(err => {
+            statusElement.textContent = 'Error loading the model: ' + err.message;
+        });
+    </script>
+</body>
+</html>
