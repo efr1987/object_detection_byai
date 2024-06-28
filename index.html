@@ -10,33 +10,137 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #000;
             color: #fff;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
         h1 {
             font-size: 1.5rem;
             text-align: center;
+            margin: 10px 0;
+        }
+        #videoContainer {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+        }
+        #video {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #detectedObjects {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            max-height: 30vh;
+            overflow-y: auto;
         }
         #status {
+            color: #00FFFF;
             text-align: center;
-            margin-top: 20px;
+            padding: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Mobile Object Detection</h1>
-    <div id="status">Loading model...</div>
+    <div class="container">
+        <h1>Mobile Object Detection</h1>
+        <div id="videoContainer">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        <div id="detectedObjects"></div>
+        <div id="status">Loading model...</div>
+    </div>
 
     <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const detectedObjectsElement = document.getElementById('detectedObjects');
         const statusElement = document.getElementById('status');
 
+        let model;
+        let detectedObjects = new Map();
+
         // Load the COCO-SSD model
-        cocoSsd.load().then(model => {
-            statusElement.textContent = 'Model loaded successfully!';
+        cocoSsd.load().then(loadedModel => {
+            model = loadedModel;
+            statusElement.textContent = 'Model loaded. Starting video...';
+            startVideo();
         }).catch(err => {
             statusElement.textContent = 'Error loading the model: ' + err.message;
         });
+
+        // Start the video stream
+        function startVideo() {
+            const constraints = {
+                video: {
+                    facingMode: 'environment'
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.addEventListener('loadedmetadata', () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        statusElement.textContent = 'Video started. Detecting objects...';
+                        detectObjects();
+                    });
+                })
+                .catch(err => {
+                    statusElement.textContent = 'Error accessing the camera: ' + err.message;
+                });
+        }
+
+        // Detect objects in the video stream
+        function detectObjects() {
+            model.detect(video).then(predictions => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                predictions.forEach(prediction => {
+                    const [x, y, width, height] = prediction.bbox;
+                    ctx.strokeStyle = '#00FFFF';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(x, y, width, height);
+
+                    ctx.fillStyle = '#00FFFF';
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y > 20 ? y - 5 : y + 20);
+
+                    if (!detectedObjects.has(prediction.class)) {
+                        detectedObjects.set(prediction.class, new Date().toLocaleTimeString());
+                        updateDetectedObjectsList();
+                    }
+                });
+
+                // Detect objects every 500ms (2 FPS)
+                setTimeout(detectObjects, 500);
+            });
+        }
+
+        // Update the list of detected objects
+        function updateDetectedObjectsList() {
+            detectedObjectsElement.innerHTML = '<h3>Detected Objects:</h3>';
+            detectedObjects.forEach((time, object) => {
+                detectedObjectsElement.innerHTML += `<p>${object} - First detected at ${time}</p>`;
+            });
+        }
     </script>
 </body>
 </html>
